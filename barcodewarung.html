@@ -154,6 +154,24 @@
     </div>
 </div>
 
+<div id="area-kasir" class="mt-5 hidden glass-card border-gold p-4">
+    <h3 class="text-[#D4AF37] font-bold mb-3 border-b border-gold/20 pb-2 flex justify-between">
+        <span><i class="fa-solid fa-cart-shopping"></i> KERANJANG KASIR</span>
+        <button onclick="batalTransaksi()" class="text-[10px] text-red-500 font-bold uppercase">Batal</button>
+    </h3>
+    <div id="list-keranjang" class="space-y-2 mb-4 max-h-40 overflow-y-auto">
+        </div>
+    <div class="border-t border-gold/30 pt-3">
+        <div class="flex justify-between text-lg font-black text-white">
+            <span>TOTAL:</span>
+            <span id="total-belanja">Rp 0</span>
+        </div>
+        <button onclick="prosesPembayaran()" class="w-full btn-gold mt-3 py-2 rounded-xl font-bold uppercase text-xs">
+            Bayar & Cetak PDF
+        </button>
+    </div>
+</div>
+
 <div id="welcome-screen" class="fixed inset-0 z-[100] bg-[#0f172a] flex flex-col items-center justify-center transition-all duration-1000">
     <div class="text-center animate-bounce">
         <div class="w-24 h-24 glass-card border-gold flex items-center justify-center text-4xl text-[#D4AF37] mx-auto mb-4">
@@ -232,48 +250,52 @@
     }
 
   // --- LOGIKA DATABASE (VERSI LAPORAN PENJUALAN) ---
+// 1. Variabel penampung belanjaan (Taruh di atas fungsi prosesBarang)
+let keranjang = [];
+
+// --- FUNGSI PROSES BARANG (VERSI SUPER KASIR) ---
 async function prosesBarang(barcode, mode) {
     const barangRef = ref(db, `stok_barang/${barcode}`);
     const snapshot = await get(barangRef);
     const data = snapshot.val();
 
     if (data) {
-        // JIKA BARANG ADA
-        let pesan = mode === 'masuk' ? "Tambah Stok Baru:" : "Jumlah Penjualan:";
-        let qty = prompt(`Barang: ${data.nama}\nStok Sekarang: ${data.stok}\n\n${pesan}`, "1");
-        
-        if (qty && !isNaN(qty)) {
-            let jumlah = parseInt(qty);
-            
-            if (mode === 'masuk') {
-                // LOGIKA STOK MASUK
-                await update(barangRef, { 
-                    stok: data.stok + jumlah 
-                });
-                alert(`Berhasil! Stok ${data.nama} bertambah.`);
-            } else {
-                // LOGIKA JUAL (STOK KELUAR)
-                let stokBaru = data.stok - jumlah;
-                
-                if (stokBaru < 0) {
+        // --- JIKA BARANG ADA DI DATABASE ---
+        if (mode === 'masuk') {
+            // MODE STOK MASUK (Langsung Update)
+            let qty = prompt(`Tambah Stok: ${data.nama}\nStok Sekarang: ${data.stok}\nMasukkan Jumlah:`, "1");
+            if (qty && !isNaN(qty)) {
+                await update(barangRef, { stok: data.stok + parseInt(qty) });
+                alert(`Stok ${data.nama} Berhasil Ditambah!`);
+            }
+        } else {
+            // MODE JUAL (Masuk Keranjang Dulu - Indomaret Style)
+            let qty = prompt(`Jual Barang: ${data.nama}\nHarga: Rp ${data.hargaJual.toLocaleString()}\nBeli Berapa?`, "1");
+            if (qty && !isNaN(qty)) {
+                let jumlah = parseInt(qty);
+                if (jumlah > data.stok) {
                     alert("Waduh Bang, Stok Nggak Cukup!");
                     return;
                 }
 
-                // Ambil data terjual lama (kalau belum ada, anggap 0)
-                let terjualLama = data.terjual || 0;
-
-                await update(barangRef, { 
-                    stok: stokBaru,
-                    terjual: terjualLama + jumlah // TAMBAHKAN ANGKA TERJUAL DI SINI
+                // Masukkan ke daftar antrian belanja
+                keranjang.push({
+                    barcode: barcode,
+                    nama: data.nama,
+                    harga: data.hargaJual,
+                    qty: jumlah,
+                    stokLama: data.stok,
+                    terjualLama: data.terjual || 0
                 });
-                alert(`Berhasil Terjual! Sisa stok ${data.nama}: ${stokBaru}`);
+
+                // Update tampilan keranjang di layar
+                updateTampilanKeranjang();
             }
         }
     } else {
-        // JIKA BARANG BARU (PENDAFTARAN)
+        // --- JIKA BARANG BELUM TERDAFTAR ---
         if (mode === 'jual') {
-            alert("Barang Belum Terdaftar! Silahkan Scan di Menu 'Stok Masuk' dulu.");
+            alert("Barang Belum Terdaftar! Scan di 'Stok Masuk' dulu Bang.");
             return;
         }
 
@@ -291,12 +313,74 @@ async function prosesBarang(barcode, mode) {
                 hargaJual: parseInt(hJual),
                 stok: parseInt(stokAwal),
                 minStok: parseInt(limit),
-                terjual: 0 // Inisialisasi awal angka terjual adalah nol
+                terjual: 0
             });
             alert("Barang Berhasil Didaftarkan!");
         }
     }
 }
+
+// 2. FUNGSI UPDATE TAMPILAN KERANJANG DI LAYAR
+function updateTampilanKeranjang() {
+    const listDiv = document.getElementById('list-keranjang');
+    const areaKasir = document.getElementById('area-kasir');
+    listDiv.innerHTML = "";
+    let total = 0;
+
+    if (keranjang.length > 0) {
+        areaKasir.classList.remove('hidden'); // Munculkan kotak kasir
+        keranjang.forEach((item) => {
+            total += (item.harga * item.qty);
+            listDiv.innerHTML += `
+                <div class="flex justify-between text-xs bg-white/5 p-2 rounded border border-white/10 mb-1">
+                    <span>${item.nama} (x${item.qty})</span>
+                    <span class="font-mono text-[#D4AF37]">Rp ${(item.harga * item.qty).toLocaleString()}</span>
+                </div>
+            `;
+        });
+    } else {
+        areaKasir.classList.add('hidden');
+    }
+    document.getElementById('total-belanja').innerText = "Rp " + total.toLocaleString();
+}
+
+// 3. FUNGSI BAYAR (KALKULATOR KEMBALIAN + UPDATE DATABASE)
+window.prosesPembayaran = async function() {
+    let total = keranjang.reduce((sum, item) => sum + (item.harga * item.qty), 0);
+    let uangBayar = prompt(`TOTAL: Rp ${total.toLocaleString()}\n\nMasukkan Uang Pembayaran (Tunai):`);
+
+    if (uangBayar && parseInt(uangBayar) >= total) {
+        let kembalian = parseInt(uangBayar) - total;
+        alert(`KEMBALIAN: Rp ${kembalian.toLocaleString()}\n\nKlik OK untuk simpan transaksi & potong stok.`);
+
+        // Update semua barang di keranjang ke Firebase
+        for (let item of keranjang) {
+            const bRef = ref(db, `stok_barang/${item.barcode}`);
+            await update(bRef, {
+                stok: item.stokLama - item.qty,
+                terjual: item.terjualLama + item.qty
+            });
+        }
+
+        // Cetak Laporan PDF Penjualan
+        await window.downloadPDF();
+
+        // Reset Keranjang
+        keranjang = [];
+        updateTampilanKeranjang();
+        alert("Transaksi Berhasil & Stok Terupdate!");
+    } else {
+        alert("Uang kurang atau transaksi dibatalkan!");
+    }
+}
+
+// 4. FUNGSI BATAL
+window.batalTransaksi = () => {
+    if(confirm("Hapus semua daftar belanjaan?")) {
+        keranjang = [];
+        updateTampilanKeranjang();
+    }
+};
 
     // --- REALTIME UPDATE DASHBOARD ---
     onValue(ref(db, 'stok_barang'), (snapshot) => {
@@ -381,7 +465,7 @@ window.filterBarang = function() {
     }
 }
 
-// --- FUNGSI EXPORT KE PDF ---
+// --- FUNGSI EXPORT KE PDF + RESET HARIAN ---
 window.downloadPDF = async function() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -414,10 +498,6 @@ window.downloadPDF = async function() {
 
     Object.keys(data).forEach((barcode) => {
         const item = data[barcode];
-        // Kita asumsikan 'terjual' adalah field yang mencatat laku hari ini
-        // Jika Abang belum punya field 'terjual', sementara Cimi buat logika: 
-        // Kalau ada transaksi keluar, datanya muncul di sini.
-        
         if (item.terjual && item.terjual > 0) { 
             const subTotal = item.terjual * item.hargaJual;
             totalUangMasuk += subTotal;
@@ -426,7 +506,7 @@ window.downloadPDF = async function() {
                 item.nama,
                 item.terjual,
                 `Rp ${item.hargaJual.toLocaleString()}`,
-                item.stok // Stok sisa di gudang
+                item.stok 
             ]);
         }
     });
@@ -443,9 +523,9 @@ window.downloadPDF = async function() {
         body: rows,
         headStyles: { fillColor: [212, 175, 55], textColor: [0, 0, 0], fontStyle: 'bold' },
         columnStyles: {
-            1: { halign: 'center' }, // Terjual di tengah
-            2: { halign: 'right' },  // Harga di kanan
-            3: { halign: 'center' }  // Stok di tengah
+            1: { halign: 'center' }, 
+            2: { halign: 'right' },  
+            3: { halign: 'center' }  
         },
         styles: { fontSize: 9 }
     });
@@ -460,13 +540,34 @@ window.downloadPDF = async function() {
     doc.setTextColor(34, 197, 94); // Warna Hijau Duit
     doc.text(`Rp ${totalUangMasuk.toLocaleString()}`, 14, finalY + 8);
 
-    // 6. Footer Digital Sign
+    // 6. Footer
     doc.setFontSize(8);
     doc.setTextColor(150);
     doc.text("Dokumen ini dihasilkan otomatis oleh BBS Gold Inventory System", 14, 285);
 
-    // 7. Save
+    // 7. Simpan File PDF
     doc.save(`Sales_Report_BBS_${new Date().toISOString().split('T')[0]}.pdf`);
+
+    // --- FITUR RESET HARIAN (TAMBAHAN CIMI) ---
+    // Kasih jeda sedikit biar download-nya selesai dulu
+    setTimeout(async () => {
+        const yakinReset = confirm("Laporan PDF sudah ter-download.\n\nApakah Abang ingin RESET data penjualan hari ini?\n(Klik OK jika ingin menutup buku dan mulai dari nol besok pagi)");
+        
+        if (yakinReset) {
+            try {
+                // Loop untuk mengubah semua field 'terjual' menjadi 0
+                const updates = {};
+                Object.keys(data).forEach((barcode) => {
+                    updates[`stok_barang/${barcode}/terjual`] = 0;
+                });
+                
+                await update(ref(db), updates);
+                alert("BERHASIL! Buku sudah ditutup. Angka terjual kembali ke Nol untuk hari baru.");
+            } catch (error) {
+                alert("Gagal reset data: " + error);
+            }
+        }
+    }, 1500);
 }
 
 // --- FUNGSI WELCOME & FULLSCREEN ---
