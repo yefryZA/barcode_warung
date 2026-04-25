@@ -154,6 +154,20 @@
     </div>
 </div>
 
+<div id="welcome-screen" class="fixed inset-0 z-[100] bg-[#0f172a] flex flex-col items-center justify-center transition-all duration-1000">
+    <div class="text-center animate-bounce">
+        <div class="w-24 h-24 glass-card border-gold flex items-center justify-center text-4xl text-[#D4AF37] mx-auto mb-4">
+            <i class="fa-solid fa-crown"></i>
+        </div>
+        <h1 class="text-3xl font-black text-[#D4AF37] tracking-tighter">BBS GOLD</h1>
+        <p class="text-gray-500 text-xs tracking-[0.5em] uppercase">Inventory System</p>
+    </div>
+    
+    <button onclick="mulaiAplikasi()" class="mt-12 btn-gold px-10 py-3 rounded-full font-bold uppercase text-sm tracking-widest active:scale-95 transition-all">
+        Buka Gudang <i class="fa-solid fa-arrow-right ml-2"></i>
+    </button>
+</div>
+
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script type="module">
@@ -341,6 +355,26 @@ window.filterBarang = function() {
             }
         }
     }
+}
+
+// --- FUNGSI WELCOME & FULLSCREEN ---
+window.mulaiAplikasi = function() {
+    // 1. Jalankan Fullscreen (Hanya jalan di HP/Browser tertentu setelah ada interaksi user)
+    let elem = document.documentElement;
+    if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) { /* Safari */
+        elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) { /* IE11 */
+        elem.msRequestFullscreen();
+    }
+
+    // 2. Hilangkan Welcome Screen dengan efek fade out
+    const welcome = document.getElementById('welcome-screen');
+    welcome.style.opacity = '0';
+    setTimeout(() => {
+        welcome.style.display = 'none';
+    }, 1000);
 }
 
 </script>
