@@ -168,7 +168,13 @@
     </button>
 </div>
 
+<button onclick="downloadPDF()" class="bg-red-600/20 text-red-400 border border-red-600/50 px-3 py-1 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2">
+    <i class="fa-solid fa-file-pdf"></i> Export PDF
+</button>
+
 <script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
 <script type="module">
     // 1. Import Firebase
@@ -225,54 +231,72 @@
         }
     }
 
-    // --- LOGIKA DATABASE ---
-    async function prosesBarang(barcode, mode) {
-        const barangRef = ref(db, `stok_barang/${barcode}`);
-        const snapshot = await get(barangRef);
-        const data = snapshot.val();
+  // --- LOGIKA DATABASE (VERSI LAPORAN PENJUALAN) ---
+async function prosesBarang(barcode, mode) {
+    const barangRef = ref(db, `stok_barang/${barcode}`);
+    const snapshot = await get(barangRef);
+    const data = snapshot.val();
 
-        if (data) {
-            let pesan = mode === 'masuk' ? "Tambah Stok Baru:" : "Jumlah Penjualan:";
-            let qty = prompt(`Barang: ${data.nama}\nStok Sekarang: ${data.stok}\n\n${pesan}`, "1");
+    if (data) {
+        // JIKA BARANG ADA
+        let pesan = mode === 'masuk' ? "Tambah Stok Baru:" : "Jumlah Penjualan:";
+        let qty = prompt(`Barang: ${data.nama}\nStok Sekarang: ${data.stok}\n\n${pesan}`, "1");
+        
+        if (qty && !isNaN(qty)) {
+            let jumlah = parseInt(qty);
             
-            if (qty && !isNaN(qty)) {
-                let jumlah = parseInt(qty);
-                let stokBaru = mode === 'masuk' ? (data.stok + jumlah) : (data.stok - jumlah);
+            if (mode === 'masuk') {
+                // LOGIKA STOK MASUK
+                await update(barangRef, { 
+                    stok: data.stok + jumlah 
+                });
+                alert(`Berhasil! Stok ${data.nama} bertambah.`);
+            } else {
+                // LOGIKA JUAL (STOK KELUAR)
+                let stokBaru = data.stok - jumlah;
                 
                 if (stokBaru < 0) {
                     alert("Waduh Bang, Stok Nggak Cukup!");
                     return;
                 }
 
-                await update(barangRef, { stok: stokBaru });
-                alert(`Berhasil! Stok ${data.nama} sekarang: ${stokBaru}`);
-                // location.reload(); // Tidak perlu reload karena onValue akan update otomatis
-            }
-        } else {
-            if (mode === 'jual') {
-                alert("Barang Belum Terdaftar! Silahkan Scan di Menu 'Stok Masuk' dulu.");
-                return;
-            }
+                // Ambil data terjual lama (kalau belum ada, anggap 0)
+                let terjualLama = data.terjual || 0;
 
-            alert("Barang Baru Terdeteksi! Silahkan Lengkapi Data.");
-            let nama = prompt("Nama Barang:");
-            let hBeli = prompt("Harga Modal (Rp):", "0");
-            let hJual = prompt("Harga Jual (Rp):", "0");
-            let stokAwal = prompt("Stok Awal:", "1");
-            let limit = prompt("Peringatan Stok Menipis di angka:", "5");
-
-            if (nama && hBeli && hJual) {
-                await set(barangRef, {
-                    nama: nama,
-                    hargaBeli: parseInt(hBeli),
-                    hargaJual: parseInt(hJual),
-                    stok: parseInt(stokAwal),
-                    minStok: parseInt(limit)
+                await update(barangRef, { 
+                    stok: stokBaru,
+                    terjual: terjualLama + jumlah // TAMBAHKAN ANGKA TERJUAL DI SINI
                 });
-                alert("Barang Berhasil Didaftarkan!");
+                alert(`Berhasil Terjual! Sisa stok ${data.nama}: ${stokBaru}`);
             }
         }
+    } else {
+        // JIKA BARANG BARU (PENDAFTARAN)
+        if (mode === 'jual') {
+            alert("Barang Belum Terdaftar! Silahkan Scan di Menu 'Stok Masuk' dulu.");
+            return;
+        }
+
+        alert("Barang Baru Terdeteksi! Silahkan Lengkapi Data.");
+        let nama = prompt("Nama Barang:");
+        let hBeli = prompt("Harga Modal (Rp):", "0");
+        let hJual = prompt("Harga Jual (Rp):", "0");
+        let stokAwal = prompt("Stok Awal:", "1");
+        let limit = prompt("Peringatan Stok Menipis di angka:", "5");
+
+        if (nama && hBeli && hJual) {
+            await set(barangRef, {
+                nama: nama,
+                hargaBeli: parseInt(hBeli),
+                hargaJual: parseInt(hJual),
+                stok: parseInt(stokAwal),
+                minStok: parseInt(limit),
+                terjual: 0 // Inisialisasi awal angka terjual adalah nol
+            });
+            alert("Barang Berhasil Didaftarkan!");
+        }
     }
+}
 
     // --- REALTIME UPDATE DASHBOARD ---
     onValue(ref(db, 'stok_barang'), (snapshot) => {
@@ -355,6 +379,94 @@ window.filterBarang = function() {
             }
         }
     }
+}
+
+// --- FUNGSI EXPORT KE PDF ---
+window.downloadPDF = async function() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // 1. Ambil data dari Firebase
+    const dbRef = ref(db, 'stok_barang');
+    const snapshot = await get(dbRef);
+    const data = snapshot.val();
+
+    if (!data) {
+        alert("Belum ada data barang, Bang!");
+        return;
+    }
+
+    // 2. Header Laporan
+    doc.setFontSize(16);
+    doc.setTextColor(212, 175, 55); // Warna Emas BBS
+    doc.text("LAPORAN PENJUALAN HARIAN - BBS GOLD", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const tgl = new Date();
+    const tglFormat = tgl.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    doc.text(`Tanggal: ${tglFormat}`, 14, 28);
+    doc.line(14, 32, 196, 32);
+
+    // 3. Filter & Susun Data (Hanya yang terjual)
+    const rows = [];
+    let totalUangMasuk = 0;
+
+    Object.keys(data).forEach((barcode) => {
+        const item = data[barcode];
+        // Kita asumsikan 'terjual' adalah field yang mencatat laku hari ini
+        // Jika Abang belum punya field 'terjual', sementara Cimi buat logika: 
+        // Kalau ada transaksi keluar, datanya muncul di sini.
+        
+        if (item.terjual && item.terjual > 0) { 
+            const subTotal = item.terjual * item.hargaJual;
+            totalUangMasuk += subTotal;
+
+            rows.push([
+                item.nama,
+                item.terjual,
+                `Rp ${item.hargaJual.toLocaleString()}`,
+                item.stok // Stok sisa di gudang
+            ]);
+        }
+    });
+
+    if (rows.length === 0) {
+        alert("Hari ini belum ada barang yang terjual, Bang. Semangat jualannya!");
+        return;
+    }
+
+    // 4. Gambar Tabel
+    doc.autoTable({
+        startY: 38,
+        head: [['Nama Barang', 'Terjual', 'Harga', 'Sisa Stok']],
+        body: rows,
+        headStyles: { fillColor: [212, 175, 55], textColor: [0, 0, 0], fontStyle: 'bold' },
+        columnStyles: {
+            1: { halign: 'center' }, // Terjual di tengah
+            2: { halign: 'right' },  // Harga di kanan
+            3: { halign: 'center' }  // Stok di tengah
+        },
+        styles: { fontSize: 9 }
+    });
+
+    // 5. Total Uang Masuk
+    const finalY = doc.lastAutoTable.finalY + 15;
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.setFont(undefined, 'bold');
+    doc.text(`TOTAL UANG MASUK HARI INI:`, 14, finalY);
+    
+    doc.setTextColor(34, 197, 94); // Warna Hijau Duit
+    doc.text(`Rp ${totalUangMasuk.toLocaleString()}`, 14, finalY + 8);
+
+    // 6. Footer Digital Sign
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text("Dokumen ini dihasilkan otomatis oleh BBS Gold Inventory System", 14, 285);
+
+    // 7. Save
+    doc.save(`Sales_Report_BBS_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
 // --- FUNGSI WELCOME & FULLSCREEN ---
