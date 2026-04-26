@@ -328,32 +328,39 @@ function updateTampilanKeranjang() {
     let total = 0;
 
     if (keranjang.length > 0) {
-        areaKasir.classList.remove('hidden'); // Munculkan kotak kasir
+        areaKasir.classList.remove('hidden');
         keranjang.forEach((item) => {
-            total += (item.harga * item.qty);
+            let subtotal = item.harga * item.qty;
+            total += subtotal;
             listDiv.innerHTML += `
                 <div class="flex justify-between text-xs bg-white/5 p-2 rounded border border-white/10 mb-1">
                     <span>${item.nama} (x${item.qty})</span>
-                    <span class="font-mono text-[#D4AF37]">Rp ${(item.harga * item.qty).toLocaleString()}</span>
+                    <span class="font-mono text-[#D4AF37]">Rp ${subtotal.toLocaleString('id-ID')}</span>
                 </div>
             `;
         });
     } else {
         areaKasir.classList.add('hidden');
     }
-    document.getElementById('total-belanja').innerText = "Rp " + total.toLocaleString();
+    // Update total belanja dengan format titik
+    document.getElementById('total-belanja').innerText = "Rp " + total.toLocaleString('id-ID');
 }
 
 // 3. FUNGSI BAYAR (KALKULATOR KEMBALIAN + UPDATE DATABASE)
 window.prosesPembayaran = async function() {
     let total = keranjang.reduce((sum, item) => sum + (item.harga * item.qty), 0);
-    let uangBayar = prompt(`TOTAL: Rp ${total.toLocaleString()}\n\nMasukkan Uang Pembayaran (Tunai):`);
+    
+    // Munculkan prompt dengan total yang sudah ada titiknya
+    let uangBayarRaw = prompt(`TOTAL BELANJA: Rp ${total.toLocaleString('id-ID')}\n\nMasukkan Uang Pembayaran:`);
+    
+    // Bersihkan input dari karakter selain angka (takutnya Abang ketik pakai titik manual)
+    let uangBayar = uangBayarRaw ? uangBayarRaw.replace(/\D/g, '') : null;
 
     if (uangBayar && parseInt(uangBayar) >= total) {
         let kembalian = parseInt(uangBayar) - total;
-        alert(`KEMBALIAN: Rp ${kembalian.toLocaleString()}\n\nKlik OK untuk simpan transaksi & potong stok.`);
+        
+        alert(`KEMBALIAN: Rp ${kembalian.toLocaleString('id-ID')}\n\nKlik OK untuk simpan transaksi & potong stok.`);
 
-        // Update semua barang di keranjang ke Firebase
         for (let item of keranjang) {
             const bRef = ref(db, `stok_barang/${item.barcode}`);
             await update(bRef, {
@@ -362,15 +369,11 @@ window.prosesPembayaran = async function() {
             });
         }
 
-        // Cetak Laporan PDF Penjualan
-        await window.downloadPDF();
-
-        // Reset Keranjang
         keranjang = [];
         updateTampilanKeranjang();
-        alert("Transaksi Berhasil & Stok Terupdate!");
-    } else {
-        alert("Uang kurang atau transaksi dibatalkan!");
+        alert("Transaksi Berhasil!");
+    } else if (uangBayarRaw) {
+        alert("Uang kurang, Bang! Periksa lagi nominalnya.");
     }
 }
 
