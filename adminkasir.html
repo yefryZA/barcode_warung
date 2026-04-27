@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBS ADMIN - GOLD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: white; font-family: 'sans-serif'; }
+        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 1.5rem; }
+        .border-gold { border: 2px solid #D4AF37 !important; }
+        .btn-gold { background: linear-gradient(135deg, #D4AF37 0%, #996515 100%); color: #000; }
+    </style>
+</head>
+<body class="p-5">
+
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-[#D4AF37]">BBS ADMIN</h1>
+            <p class="text-[10px] tracking-[0.2em] text-gray-400">INVENTORY & ASSET MANAGEMENT</p>
+        </div>
+        <div class="w-12 h-12 glass-card border-gold flex items-center justify-center text-[#D4AF37]"><i class="fa-solid fa-user-shield"></i></div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-8">
+        <div class="glass-card border-gold p-4 text-center">
+            <p class="text-gray-400 text-[10px] uppercase mb-1">Total Nilai Aset</p>
+            <h2 id="total-aset-display" class="text-lg font-extrabold text-[#D4AF37]">Rp 0</h2>
+        </div>
+        <div class="glass-card border-red-500/50 p-4 text-center">
+            <p class="text-red-400 text-[10px] uppercase mb-1">Stok Menipis</p>
+            <h2 id="stok-tipis-display" class="text-lg font-extrabold text-red-500">0</h2>
+        </div>
+    </div>
+
+    <button onclick="bukaScan('masuk')" class="w-full btn-gold p-6 rounded-2xl flex items-center justify-center gap-3 mb-8">
+        <i class="fa-solid fa-plus-circle text-xl"></i>
+        <span class="font-bold uppercase text-black">Input Stok / Barang Baru</span>
+    </button>
+
+    <div class="glass-card p-4">
+        <h2 class="text-[#D4AF37] font-bold mb-4 uppercase text-xs tracking-widest">Data Master Barang</h2>
+        <input type="text" id="cariBarang" onkeyup="filterBarang()" placeholder="Cari barang..." class="w-full bg-white/5 border border-gold/30 rounded-lg p-2 mb-4 text-sm outline-none">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead><tr class="text-[#D4AF37] border-b border-gold/20"><th class="p-2">Barang</th><th class="p-2">Stok</th><th class="p-2 text-right">Harga</th></tr></thead>
+                <tbody id="tabel-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="modal-scan" class="fixed inset-0 bg-black/90 z-50 hidden flex flex-col p-5">
+        <div class="flex justify-between items-center mb-5"><h2 class="text-[#D4AF37] font-bold">SCAN MASUK</h2><button onclick="tutupScan()" class="text-white text-2xl">&times;</button></div>
+        <div id="reader" class="w-full rounded-xl border-2 border-gold overflow-hidden"></div>
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_wvEsCCOEjiwxui7_pdOrG8-xMBCw3mw",
+            authDomain: "barcode-warung-81e97.firebaseapp.com",
+            projectId: "barcode-warung-81e97",
+            storageBucket: "barcode-warung-81e97.firebasestorage.app",
+            messagingSenderId: "1089837830503",
+            appId: "1:1089837830503:web:410644c17a04314e37dfc2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app, "https://barcode-warung-81e97-default-rtdb.asia-southeast1.firebasedatabase.app/");
+
+        let html5QrCode;
+
+        window.bukaScan = function() {
+            document.getElementById('modal-scan').classList.remove('hidden');
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (decodedText) => {
+                window.tutupScan();
+                prosesAdmin(decodedText);
+            });
+        }
+
+        window.tutupScan = () => { if(html5QrCode) html5QrCode.stop().then(() => document.getElementById('modal-scan').classList.add('hidden')); }
+
+        async function prosesAdmin(barcode) {
+            const snap = await get(ref(db, `stok_barang/${barcode}`));
+            const data = snap.val();
+            if (data) {
+                let qty = prompt(`Tambah Stok: ${data.nama}\nStok Skrg: ${data.stok}\nTambah Berapa?`, "1");
+                if (qty) await update(ref(db, `stok_barang/${barcode}`), { stok: data.stok + parseInt(qty) });
+            } else {
+                let nama = prompt("Barang Baru! Nama:");
+                let hBeli = prompt("Harga Modal:");
+                let hJual = prompt("Harga Jual:");
+                let stok = prompt("Stok Awal:");
+                if (nama && hBeli && hJual) {
+                    await set(ref(db, `stok_barang/${barcode}`), {
+                        nama, hargaBeli: parseInt(hBeli), hargaJual: parseInt(hJual), stok: parseInt(stok), minStok: 5, terjual: 0
+                    });
+                    alert("Tersimpan!");
+                }
+            }
+        }
+
+        // Dashboard & Table
+        onValue(ref(db, 'stok_barang'), (snap) => {
+            const items = snap.val();
+            let aset = 0, tipis = 0;
+            const tbody = document.getElementById('tabel-body');
+            tbody.innerHTML = "";
+            if (items) {
+                Object.keys(items).forEach(key => {
+                    const item = items[key];
+                    aset += (item.stok * (item.hargaBeli || 0));
+                    if(item.stok <= (item.minStok || 0)) tipis++;
+                    tbody.innerHTML += `<tr class="border-b border-white/5"><td class="p-2"><b>${item.nama}</b><br><small class="text-gray-500">${key}</small></td><td class="p-2">${item.stok}</td><td class="p-2 text-right">Rp ${item.hargaJual.toLocaleString()}</td></tr>`;
+                });
+            }
+            document.getElementById('total-aset-display').innerText = "Rp " + aset.toLocaleString();
+            document.getElementById('stok-tipis-display').innerText = tipis;
+        });
+    </script>
+</body>
+</html>

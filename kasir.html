@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBS KASIR - GOLD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: white; font-family: 'sans-serif'; }
+        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 1.5rem; }
+        .border-gold { border: 2px solid #D4AF37 !important; box-shadow: 0 0 10px rgba(212, 175, 55, 0.2); }
+        .btn-gold { background: linear-gradient(135deg, #D4AF37 0%, #996515 100%); color: #000; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3); }
+    </style>
+</head>
+<body class="p-5">
+
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-[#D4AF37]">BBS KASIR</h1>
+            <p class="text-[10px] tracking-[0.2em] text-gray-400">SALES TERMINAL UNIT</p>
+        </div>
+        <button onclick="downloadPDF()" class="bg-red-600/20 text-red-400 border border-red-600/50 px-3 py-2 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2">
+            <i class="fa-solid fa-file-pdf"></i> LAPORAN
+        </button>
+    </div>
+
+    <div class="space-y-5">
+        <button onclick="bukaScan('jual')" class="w-full btn-gold p-8 rounded-[2rem] flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-black/20 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-cart-shopping text-2xl"></i>
+                </div>
+                <div class="text-left">
+                    <span class="block font-black text-xl uppercase leading-tight text-black">Scan Jualan</span>
+                    <span class="text-[10px] font-bold opacity-60">INPUT TRANSAKSI BARU</span>
+                </div>
+            </div>
+            <i class="fa-solid fa-barcode text-3xl text-black/50"></i>
+        </button>
+    </div>
+
+    <div id="area-kasir" class="mt-8 hidden glass-card border-gold p-4">
+        <h3 class="text-[#D4AF37] font-bold mb-3 border-b border-gold/20 pb-2 flex justify-between">
+            <span>KERANJANG</span>
+            <button onclick="batalTransaksi()" class="text-[10px] text-red-500 font-bold uppercase">Batal</button>
+        </h3>
+        <div id="list-keranjang" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
+        <div class="border-t border-gold/30 pt-3">
+            <div class="flex justify-between text-xl font-black text-white">
+                <span>TOTAL:</span>
+                <span id="total-belanja">Rp 0</span>
+            </div>
+            <button onclick="prosesPembayaran()" class="w-full btn-gold mt-4 py-3 rounded-xl font-bold uppercase">BAYAR SEKARANG</button>
+        </div>
+    </div>
+
+    <div id="modal-scan" class="fixed inset-0 bg-black/90 z-50 hidden flex flex-col p-5">
+        <div class="flex justify-between items-center mb-5"><h2 id="judul-scan" class="text-xl font-bold text-[#D4AF37]">SCAN</h2><button onclick="tutupScan()" class="text-white text-2xl">&times;</button></div>
+        <div id="reader" class="w-full overflow-hidden rounded-2xl border-2 border-gold bg-black"></div>
+    </div>
+
+    <div id="welcome-screen" class="fixed inset-0 z-[100] bg-[#0f172a] flex flex-col items-center justify-center transition-all duration-1000">
+        <div class="text-center animate-bounce"><h1 class="text-3xl font-black text-[#D4AF37]">BBS KASIR</h1></div>
+        <button onclick="mulaiAplikasi()" class="mt-12 btn-gold px-10 py-3 rounded-full font-bold uppercase text-sm">Masuk Sistem</button>
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_wvEsCCOEjiwxui7_pdOrG8-xMBCw3mw",
+            authDomain: "barcode-warung-81e97.firebaseapp.com",
+            projectId: "barcode-warung-81e97",
+            storageBucket: "barcode-warung-81e97.firebasestorage.app",
+            messagingSenderId: "1089837830503",
+            appId: "1:1089837830503:web:410644c17a04314e37dfc2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app, "https://barcode-warung-81e97-default-rtdb.asia-southeast1.firebasedatabase.app/");
+
+        let html5QrCode;
+        let keranjang = [];
+
+        window.bukaScan = function(mode) {
+            document.getElementById('modal-scan').classList.remove('hidden');
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (decodedText) => {
+                window.tutupScan();
+                prosesBarang(decodedText);
+            });
+        }
+
+        window.tutupScan = function() {
+            if (html5QrCode) html5QrCode.stop().then(() => document.getElementById('modal-scan').classList.add('hidden'));
+        }
+
+        async function prosesBarang(barcode) {
+            const snapshot = await get(ref(db, `stok_barang/${barcode}`));
+            const data = snapshot.val();
+            if (data) {
+                let qty = prompt(`Jual: ${data.nama}\nHarga: Rp ${data.hargaJual.toLocaleString()}\nJumlah:`, "1");
+                if (qty && !isNaN(qty)) {
+                    if (parseInt(qty) > data.stok) return alert("Stok Tidak Cukup!");
+                    keranjang.push({ barcode, nama: data.nama, harga: data.hargaJual, qty: parseInt(qty), stokLama: data.stok, terjualLama: data.terjual || 0 });
+                    updateTampilanKeranjang();
+                }
+            } else { alert("Barang tidak ada di sistem!"); }
+        }
+
+        function updateTampilanKeranjang() {
+            const listDiv = document.getElementById('list-keranjang');
+            listDiv.innerHTML = "";
+            let total = 0;
+            if (keranjang.length > 0) {
+                document.getElementById('area-kasir').classList.remove('hidden');
+                keranjang.forEach(item => {
+                    total += item.harga * item.qty;
+                    listDiv.innerHTML += `<div class="flex justify-between text-sm bg-white/5 p-2 rounded mb-1"><span>${item.nama} x${item.qty}</span><span class="text-[#D4AF37]">Rp ${(item.harga * item.qty).toLocaleString()}</span></div>`;
+                });
+            }
+            document.getElementById('total-belanja').innerText = "Rp " + total.toLocaleString('id-ID');
+        }
+
+        window.prosesPembayaran = async function() {
+            let total = keranjang.reduce((sum, i) => sum + (i.harga * i.qty), 0);
+            let bayar = prompt(`Total: Rp ${total.toLocaleString()}\nMasukkan Uang:`);
+            if (bayar && parseInt(bayar) >= total) {
+                alert(`Kembalian: Rp ${(parseInt(bayar) - total).toLocaleString()}`);
+                for (let item of keranjang) {
+                    await update(ref(db, `stok_barang/${item.barcode}`), {
+                        stok: item.stokLama - item.qty,
+                        terjual: item.terjualLama + item.qty
+                    });
+                }
+                keranjang = []; updateTampilanKeranjang(); alert("Berhasil!");
+            }
+        }
+
+        // --- FUNGSI PDF TETAP ADA DI KASIR UNTUK TUTUP BUKU ---
+        window.downloadPDF = async function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const snapshot = await get(ref(db, 'stok_barang'));
+            const data = snapshot.val();
+            const rows = [];
+            let total = 0;
+            Object.values(data).forEach(item => {
+                if (item.terjual > 0) {
+                    rows.push([item.nama, item.terjual, `Rp ${item.hargaJual.toLocaleString()}`, `Rp ${(item.terjual * item.hargaJual).toLocaleString()}`]);
+                    total += (item.terjual * item.hargaJual);
+                }
+            });
+            doc.text("LAPORAN BBS GOLD", 14, 20);
+            doc.autoTable({ head: [['Barang', 'Qty', 'Harga', 'Subtotal']], body: rows, startY: 30 });
+            doc.text(`TOTAL: Rp ${total.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 10);
+            doc.save("Laporan_Kasir.pdf");
+            
+            if(confirm("Reset data terjual? (Tutup Buku)")) {
+                const updates = {};
+                Object.keys(data).forEach(key => updates[`stok_barang/${key}/terjual`] = 0);
+                await update(ref(db), updates);
+                alert("Buku ditutup!");
+            }
+        }
+
+        window.mulaiAplikasi = () => document.getElementById('welcome-screen').classList.add('hidden');
+    </script>
+</body>
+</html>
