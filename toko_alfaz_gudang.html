@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOKO 🐈 ALKAZ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: white; font-family: 'sans-serif'; }
+        
+        /* Kartu Efek Kaca */
+        .glass-card { 
+            background: rgba(255, 255, 255, 0.03); 
+            backdrop-filter: blur(10px); 
+            border: 1px solid rgba(212, 175, 55, 0.3); /* Border Emas Tipis */
+            border-radius: 1.5rem;
+        }
+
+        /* Border Emas Tegas */
+        .border-gold {
+            border: 2px solid #D4AF37 !important;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+
+        /* Tombol Emas */
+        .btn-gold {
+            background: linear-gradient(135deg, #D4AF37 0%, #996515 100%);
+            color: #000; /* Tulisan hitam biar kebaca di warna emas */
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        }
+
+        /* Khusus Stok Tipis Tetap Merah */
+        .border-danger {
+            border: 2px solid #ef4444 !important;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+        }
+    </style>
+</head>
+<body class="p-5">
+
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-[#D4AF37]">TOKO ALKAZ</h1>
+            <p class="text-[10px] tracking-[0.2em] text-gray-400">SYSTEM BY_YEFRY.ZA</p>
+        </div>
+        <div class="w-12 h-12 glass-card border-gold flex items-center justify-center text-[#D4AF37]">
+            <i class="fa-solid fa-crown"></i>
+        </div>
+    </div>
+
+   <div class="grid grid-cols-2 gap-3 mb-8">
+    <div class="glass-card border-gold p-3 text-center">
+        <p class="text-gray-400 text-[9px] uppercase mb-1">Total Nilai Aset</p>
+        <h2 id="total-aset-display" class="text-sm font-extrabold text-[#D4AF37]">Rp 0</h2>
+    </div>
+    <div class="glass-card border-danger p-3 text-center bg-red-500/5">
+        <p class="text-red-400 text-[9px] uppercase mb-1 font-bold">Stok Menipis</p>
+        <h2 id="stok-tipis-display" class="text-sm font-extrabold text-red-500">0 Item</h2>
+    </div>
+
+    <div class="glass-card border-gold p-3 text-center bg-white/5">
+        <p class="text-blue-400 text-[9px] uppercase mb-1 font-bold">Omzet Hari Ini</p>
+        <h2 id="total-masuk-display" class="text-sm font-extrabold text-white">Rp 0</h2>
+    </div>
+    <div class="glass-card border-gold p-3 text-center bg-green-500/10">
+        <p class="text-green-500 text-[9px] uppercase mb-1 font-bold">Margin Hari Ini</p>
+        <h2 id="total-margin-display" class="text-sm font-extrabold text-green-400">Rp 0</h2>
+    </div>
+</div>
+
+    <div class="space-y-5">
+    <button onclick="bukaScan('masuk')" class="w-full btn-gold p-6 rounded-[2rem] flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-black/20 rounded-full flex items-center justify-center">
+                <i class="fa-solid fa-plus text-xl"></i>
+            </div>
+            <div class="text-left">
+                <span class="block font-black text-lg uppercase leading-tight text-black">Stok Masuk</span>
+                <span class="text-[10px] font-bold opacity-60">TAMBAH BARANG GUDANG</span>
+            </div>
+        </div>
+        <i class="fa-solid fa-barcode text-2xl text-black/50"></i>
+    </button>
+
+    <button onclick="lihatStok()" class="w-full glass-card border-gold p-6 flex items-center justify-between group active:scale-95 transition-all">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-gray-500/10 rounded-full flex items-center justify-center border border-gray-500/30">
+                <i class="fa-solid fa-database text-xl text-gray-400"></i>
+            </div>
+            <div class="text-left">
+                <span class="block font-bold text-lg text-white">Data Master</span>
+                <span class="text-[10px] text-gray-400 uppercase">Cek Stok & Atur Harga</span>
+            </div>
+        </div>
+        <i class="fa-solid fa-chevron-right text-gray-500"></i>
+    </button>
+</div>
+
+   <div class="mt-12 text-center">
+        <p class="text-[9px] tracking-[0.4em] text-gray-600 font-bold">PT. BBS LOGISTIK DIGITAL</p>
+    </div>
+
+    <div id="modal-scan" class="fixed inset-0 bg-black/90 z-50 hidden flex flex-col p-5">
+    <div class="flex justify-between items-center mb-5">
+        <h2 id="judul-scan" class="text-xl font-bold text-[#D4AF37]">SCAN BARCODE</h2>
+        <button onclick="tutupScan()" class="text-white text-2xl">&times;</button>
+    </div>
+
+    <div id="reader" class="w-full overflow-hidden rounded-2xl border-2 border-gold bg-black"></div>
+    
+    <div class="mt-5 text-center">
+        <p class="text-gray-400 text-sm italic">Pastikan barcode berada di tengah kotak</p>
+    </div>
+</div>
+
+<div id="halaman-master" class="mt-10 hidden border-t border-gold/30 pt-8">
+    <div class="flex justify-between items-center mb-5">
+        <h2 class="text-xl font-bold text-[#D4AF37]">DATA MASTER BARANG</h2>
+        <button onclick="tutupMaster()" class="text-xs bg-red-500/20 text-red-500 px-3 py-1 rounded-full border border-red-500/50">Tutup</button>
+    </div>
+
+    <div class="relative mb-5">
+        <i class="fa-solid fa-magnifying-glass absolute left-4 top-3 text-gray-500"></i>
+        <input type="text" id="cariBarang" onkeyup="filterBarang()" placeholder="Cari nama barang..." class="w-full bg-white/5 border border-gold/30 rounded-xl py-2 pl-12 pr-4 text-sm focus:outline-none focus:border-gold">
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+        <thead>
+    <tr class="text-[#D4AF37] border-b border-gold/20 uppercase text-[10px] tracking-widest">
+        <th class="p-3">Barang</th>
+        <th class="p-3 text-center">Stok</th>
+        <th class="p-3 text-right">Aksi</th> 
+    </tr>
+</thead>
+            <tbody id="tabel-body">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="welcome-screen" class="fixed inset-0 z-[100] bg-[#0f172a] flex flex-col items-center justify-center transition-all duration-1000">
+    <div class="text-center animate-bounce">
+        <div class="w-24 h-24 glass-card border-gold flex items-center justify-center text-4xl text-[#D4AF37] mx-auto mb-4">
+            <i class="fa-solid fa-crown"></i>
+        </div>
+        <h1 class="text-3xl font-black text-[#D4AF37] tracking-tighter">TOKO ALKAZ</h1>
+        <p class="text-gray-500 text-xs tracking-[0.5em] uppercase">SEMOGA HARI INI MENDAPAT REZEKI YANG BAROKAH</p>
+    </div>
+    
+    <button onclick="mulaiAplikasi()" class="mt-12 btn-gold px-10 py-3 rounded-full font-bold uppercase text-sm tracking-widest active:scale-95 transition-all">
+        Buka Toko <i class="fa-solid fa-arrow-right ml-2"></i>
+    </button>
+</div>
+
+<button onclick="downloadPDF()" class="bg-red-600/20 text-red-400 border border-red-600/50 px-3 py-1 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2">
+    <i class="fa-solid fa-file-pdf"></i> Export PDF
+</button>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+<script type="module">
+    // 1. Import Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { 
+        getDatabase, ref, set, get, update, onValue 
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // 2. Config
+    const firebaseConfig = {
+        apiKey: "AIzaSyA_wvEsCCOEjiwxui7_pdOrG8-xMBCw3mw",
+        authDomain: "barcode-warung-81e97.firebaseapp.com",
+        projectId: "barcode-warung-81e97",
+        storageBucket: "barcode-warung-81e97.firebasestorage.app",
+        messagingSenderId: "1089837830503",
+        appId: "1:1089837830503:web:410644c17a04314e37dfc2",
+        measurementId: "G-92V3E8BM6J"
+    };
+
+    // 3. Init
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app, "https://barcode-warung-81e97-default-rtdb.asia-southeast1.firebasedatabase.app/");
+
+    let html5QrCode;
+
+    // --- DAFTARKAN KE WINDOW SUPAYA TOMBOL BISA KLIK ---
+ // FUNGSI BARU: PENGGANTI SCAN (PAKAI KETIK)
+window.bukaScan = async function(mode) {
+    let barcode = prompt("Masukkan Barcode / Kode Barang:");
+    if (barcode) {
+        prosesBarang(barcode, mode);
+    }
+}
+
+// LOGIKA DATABASE (KHUSUS STOK MASUK & DAFTAR BARU)
+async function prosesBarang(barcode, mode) {
+    const { ref, get, set, update } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
+    const barangRef = ref(db, `stok_barang/${barcode}`);
+    const snapshot = await get(barangRef);
+    const data = snapshot.val();
+
+    if (data) {
+        // --- MODE TAMBAH STOK GUDANG ---
+        if (mode === 'masuk') {
+            const labelSatuan = data.satuan || 'Pcs';
+            let qty = prompt(`TAMBAH STOK: ${data.nama}\nStok Sekarang: ${data.stok} ${labelSatuan}\n\nMasukkan Jumlah Baru:`, "1");
+            
+            if (qty && !isNaN(qty)) {
+                // Pakai parseFloat supaya kalau nambah stok timbangan (misal 1.5kg) tidak error
+                const stokBaru = parseFloat(data.stok) + parseFloat(qty);
+                await update(barangRef, { stok: stokBaru });
+                alert(`Stok ${data.nama} Berhasil Diupdate ke ${stokBaru} ${labelSatuan}!`);
+            }
+        }
+    } else {
+        // --- MODE DAFTAR BARANG BARU ---
+        alert("BARANG BARU TERDETEKSI!\nSilahkan lengkapi data.");
+        
+        let nama = prompt("Nama Barang:");
+        
+        // Tambahan Pertanyaan Satuan
+        let pilihanSatuan = prompt("PILIH SATUAN:\n1. PCS (Bijian)\n2. KG (Timbangan)\n\nKetik angka 1 atau 2:", "1");
+        let satuan = (pilihanSatuan === "2") ? "Kg" : "Pcs";
+        
+        let hBeli = prompt("Harga Modal / Beli (Rp):", "0");
+        let hJual = prompt("Harga Jual (Rp):", "0");
+        let stokAwal = prompt(`Stok Awal (${satuan}):`, "1");
+        let limit = prompt("Peringatan Stok Menipis di angka:", "5");
+
+        if (nama && hBeli && hJual) {
+            await set(barangRef, {
+                nama: nama.toUpperCase(),
+                satuan: satuan, // Menyimpan info satuan
+                hargaBeli: parseInt(hBeli),
+                hargaJual: parseInt(hJual),
+                // Gunakan parseFloat agar stok bisa simpan angka desimal (0.5, 1.25 dll)
+                stok: parseFloat(stokAwal),
+                minStok: parseFloat(limit),
+                terjual: 0
+            });
+            alert(`Berhasil! ${nama.toUpperCase()} terdaftar sebagai satuan ${satuan}.`);
+        }
+    }
+}
+   // --- RENDER TABEL DENGAN FITUR EDIT ---
+onValue(ref(db, 'stok_barang'), (snapshot) => {
+    const data = snapshot.val();
+    const tableBody = document.getElementById('tabel-body');
+    tableBody.innerHTML = ""; 
+
+    if (data) {
+        Object.keys(data).forEach(key => {
+            const item = data[key];
+            const isTipis = item.stok <= (item.minStok || 0);
+            
+          // --- BAGIAN RENDER TABEL (GANTI BARIS const row DENGAN INI) ---
+const row = `
+    <tr class="border-b border-white/5">
+        <td class="p-3">
+            <span class="block font-bold text-white">${item.nama}</span>
+            <span class="text-[9px] text-gray-500 italic">${key}</span>
+        </td>
+        <td class="p-3 text-center">
+            <span class="px-3 py-1 rounded-full font-bold ${isTipis ? 'bg-red-500 text-white' : 'bg-gold/10 text-[#D4AF37]'}">
+                ${item.stok}
+            </span>
+        </td>
+        <td class="p-3 text-right">
+    <button onclick="editBarang('${key}')" class="bg-gold text-black px-3 py-1 rounded-lg font-bold">EDIT</button>
+</td>
+    </tr>
+`;
+            tableBody.innerHTML += row;
+        });
+    }
+});
+
+
+// --- FUNGSI EDIT BARANG (VERSI FIXED) ---
+window.editBarang = async function(barcode) {
+     const { ref, get, update, remove } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
+    
+    try {
+        const bRef = ref(window.db || db, `stok_barang/${barcode}`);
+        const snapshot = await get(bRef);
+        const item = snapshot.val();
+
+        if (!item) {
+            alert("Data tidak ditemukan!");
+            return;
+        }
+
+        const menu = prompt(
+            `EDIT BARANG: ${item.nama}\n\n` +
+            `1. Ubah Harga Jual (Rp ${item.hargaJual})\n` +
+            `2. Ubah Harga Modal (Rp ${item.hargaBeli || 0})\n` +
+            `3. Koreksi Stok (${item.stok})\n` +
+            `4. Hapus Barang\n\n` +
+            `Pilih nomor (1-4):`
+        );
+
+        if (menu === "1") {
+            let nHarga = prompt("Harga Jual Baru:", item.hargaJual);
+            if(nHarga) await update(bRef, { hargaJual: parseInt(nHarga) });
+        } else if (menu === "2") {
+            let nModal = prompt("Harga Modal Baru:", item.hargaBeli || 0);
+            if(nModal) await update(bRef, { hargaBeli: parseInt(nModal) });
+        } else if (menu === "3") {
+            let nStok = prompt("Koreksi Stok Jadi:", item.stok);
+            if(nStok) await update(bRef, { stok: parseFloat(nStok) }); // Pakai Float biar bisa desimal
+        } else if (menu === "4") {
+            if(confirm(`Hapus ${item.nama}?`)) await remove(bRef);
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Gagal ambil data. Pastikan koneksi aman!");
+    }
+};
+
+// --- FUNGSI BUKA DATA MASTER ---
+window.lihatStok = function() {
+    document.getElementById('halaman-master').classList.remove('hidden');
+    // Scroll otomatis ke area tabel
+    document.getElementById('halaman-master').scrollIntoView({ behavior: 'smooth' });
+}
+
+window.tutupMaster = function() {
+    document.getElementById('halaman-master').classList.add('hidden');
+}
+
+onValue(ref(db, 'stok_barang'), (snapshot) => {
+    const data = snapshot.val();
+    const tableBody = document.getElementById('tabel-body');
+    const totalAsetEl = document.getElementById('total-aset-display');
+    const stokTipisEl = document.getElementById('stok-tipis-display');
+    
+    if (!tableBody) return;
+    tableBody.innerHTML = ""; 
+
+    // Variabel untuk hitung dashboard
+    let totalAset = 0;
+    let jumlahTipis = 0;
+
+    if (data) {
+        Object.keys(data).forEach(key => {
+            const item = data[key];
+
+            // 1. HITUNG ASET (Stok * Harga Beli)
+            // Pakai hargaBeli supaya tahu modal yang mengendap
+            totalAset += (parseFloat(item.stok) || 0) * (parseInt(item.hargaBeli) || 0);
+
+            // 2. HITUNG STOK TIPIS (Batas 5)
+            if (parseFloat(item.stok) <= 5) {
+                jumlahTipis++;
+            }
+
+            // 3. RENDER TABEL
+            const row = `
+                <tr class="border-b border-white/5">
+                    <td class="p-3">
+                        <span class="block font-bold text-white">${item.nama}</span>
+                        <span class="text-[9px] text-gray-500">${key}</span>
+                    </td>
+                    <td class="p-3 text-center">
+                        <span class="px-2 py-1 rounded ${parseFloat(item.stok) <= 5 ? 'bg-red-500/20 text-red-500' : 'text-white'}">
+                            ${item.stok}
+                        </span>
+                    </td>
+                    <td class="p-3 text-right">
+                        <button onclick="window.editBarang('${key}')" style="background:#D4AF37; color:black; padding:5px 10px; border-radius:5px; font-weight:bold; font-size:10px;">
+                            EDIT
+                        </button>
+                    </td>
+                </tr>
+            `;
+            tableBody.innerHTML += row;
+        });
+    } else {
+        tableBody.innerHTML = "<tr><td colspan='3' class='text-center p-5 text-gray-500'>Data Kosong</td></tr>";
+    }
+
+    // 4. UPDATE ANGKA DASHBOARD
+    if (totalAsetEl) totalAsetEl.innerText = "Rp " + totalAset.toLocaleString();
+    if (stokTipisEl) stokTipisEl.innerText = jumlahTipis + " Item";
+});
+
+// --- FUNGSI CARI BARANG ---
+window.filterBarang = function() {
+    let input = document.getElementById("cariBarang").value.toUpperCase();
+    let table = document.getElementById("tabel-body");
+    let tr = table.getElementsByTagName("tr");
+
+    for (let i = 0; i < tr.length; i++) {
+        let td = tr[i].getElementsByTagName("td")[0];
+        if (td) {
+            let txtValue = td.textContent || td.innerText;
+            if (txtValue.toUpperCase().indexOf(input) > -1) {
+                tr[i].style.display = "";
+            } else {
+                tr[i].style.display = "none";
+            }
+        }
+    }
+}
+
+// --- FUNGSI EXPORT KE PDF + RESET HARIAN ---
+window.downloadPDF = async function() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // 1. Ambil data dari Firebase
+    const dbRef = ref(db, 'stok_barang');
+    const snapshot = await get(dbRef);
+    const data = snapshot.val();
+
+    if (!data) {
+        alert("Belum ada data barang, Bang!");
+        return;
+    }
+
+    // 2. Header Laporan
+    doc.setFontSize(16);
+    doc.setTextColor(212, 175, 55); // Warna Emas BBS
+    doc.text("LAPORAN PENJUALAN HARIAN TOKO ALKAZ", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const tgl = new Date();
+    const tglFormat = tgl.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    doc.text(`Tanggal: ${tglFormat}`, 14, 28);
+    doc.line(14, 32, 196, 32);
+
+    // 3. Filter & Susun Data (Hanya yang terjual)
+    const rows = [];
+    let totalUangMasuk = 0;
+
+    Object.keys(data).forEach((barcode) => {
+        const item = data[barcode];
+        if (item.terjual && item.terjual > 0) { 
+            const subTotal = item.terjual * item.hargaJual;
+            totalUangMasuk += subTotal;
+
+            rows.push([
+                item.nama,
+                item.terjual,
+                `Rp ${item.hargaJual.toLocaleString()}`,
+                item.stok 
+            ]);
+        }
+    });
+
+    if (rows.length === 0) {
+        alert("Hari ini belum ada barang yang terjual, Bang. Semangat jualannya!");
+        return;
+    }
+
+    // 4. Gambar Tabel
+    doc.autoTable({
+        startY: 38,
+        head: [['Nama Barang', 'Terjual', 'Harga', 'Sisa Stok']],
+        body: rows,
+        headStyles: { fillColor: [212, 175, 55], textColor: [0, 0, 0], fontStyle: 'bold' },
+        columnStyles: {
+            1: { halign: 'center' }, 
+            2: { halign: 'right' },  
+            3: { halign: 'center' }  
+        },
+        styles: { fontSize: 9 }
+    });
+
+    // 5. Total Uang Masuk
+    const finalY = doc.lastAutoTable.finalY + 15;
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.setFont(undefined, 'bold');
+    doc.text(`TOTAL UANG MASUK HARI INI:`, 14, finalY);
+    
+    doc.setTextColor(34, 197, 94); // Warna Hijau Duit
+    doc.text(`Rp ${totalUangMasuk.toLocaleString()}`, 14, finalY + 8);
+
+    // 6. Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text("Dokumen ini dihasilkan otomatis oleh BBS Gold Inventory System", 14, 285);
+
+    // 7. Simpan File PDF
+    doc.save(`Sales_Report_BBS_${new Date().toISOString().split('T')[0]}.pdf`);
+
+    setTimeout(async () => {
+        const yakinReset = confirm("Laporan PDF sudah ter-download.\n\nApakah Abang ingin RESET angka terjual saja?\n(Data stok dan aset tetap aman)");
+        
+        if (yakinReset) {
+            try {
+                // Ambil referensi langsung ke folder stok_barang
+                const updates = {};
+                Object.keys(data).forEach((barcode) => {
+                    const itemRef = ref(db, `stok_barang/${barcode}`);
+                    update(itemRef, { terjual: 0 });
+                });
+                
+                alert("BERHASIL! Angka terjual kembali ke Nol. Data aset dan stok tetap aman.");
+                location.reload(); // Refresh biar angka di dashboard update
+            } catch (error) {
+                alert("Gagal reset data: " + error);
+            }
+        }
+    }, 1500);
+}
+
+// --- FUNGSI WELCOME & FULLSCREEN ---
+window.mulaiAplikasi = function() {
+    // 1. Jalankan Fullscreen (Hanya jalan di HP/Browser tertentu setelah ada interaksi user)
+    let elem = document.documentElement;
+    if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) { /* Safari */
+        elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) { /* IE11 */
+        elem.msRequestFullscreen();
+    }
+
+    // 2. Hilangkan Welcome Screen dengan efek fade out
+    const welcome = document.getElementById('welcome-screen');
+    welcome.style.opacity = '0';
+    setTimeout(() => {
+        welcome.style.display = 'none';
+    }, 1000);
+}
+// --- HITUNG OMZET & MARGIN HARI INI ---
+const tglSekarang = new Date().toISOString().split('T')[0];
+
+onValue(ref(db, 'laporan_penjualan'), (snapshot) => {
+    let omzet = 0;
+    let margin = 0;
+    const data = snapshot.val();
+    const tglSekarang = new Date().toISOString().split('T')[0];
+
+    if (data) {
+        Object.values(data).forEach(trx => {
+            if (trx.tanggal === tglSekarang) {
+                // Tambahkan Omzet
+                omzet += (trx.totalHarga || 0);
+
+                // Hitung Margin per Item
+                if (trx.items && Array.isArray(trx.items)) {
+                    trx.items.forEach(item => {
+                        // Pakai item.qty karena di kasir kita simpan dengan nama 'qty'
+                        const q = parseFloat(item.qty) || 0;
+                        const hJual = parseFloat(item.hargaJual) || 0;
+                        const hBeli = parseFloat(item.hargaBeli) || 0;
+
+                        const untung = (hJual - hBeli) * q;
+                        margin += untung;
+                    });
+                }
+            }
+        });
+    }
+
+    // Tampilkan ke layar (Gunakan Math.round agar tidak ada koma di rupiah)
+    document.getElementById('total-masuk-display').innerText = "Rp " + Math.round(omzet).toLocaleString();
+    document.getElementById('total-margin-display').innerText = "Rp " + Math.round(margin).toLocaleString();
+});
+
+window.tambahKeKeranjang = async function(id) {
+    const { ref, get } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
+    const barangRef = ref(db, `stok_barang/${id}`);
+    const snapshot = await get(barangRef);
+    const item = snapshot.val();
+
+    if (!item) return alert("Barang tidak ditemukan!");
+
+    let qtyFix = 1;
+    let hargaFix = item.hargaJual;
+
+    if (item.satuan === "Kg") {
+        // Minta input Rupiah kalau barangnya Kg
+        let nominal = prompt(`BELI ${item.nama}\nHarga per Kg: Rp ${item.hargaJual.toLocaleString()}\n\nBeli berapa Rupiah?`, "10000");
+        
+        if (nominal === null || nominal === "") return; // Batal jika user klik cancel
+        
+        let rp = parseFloat(nominal);
+        // RUMUS: Rupiah dibagi Harga per Kg = Berat yang didapat
+        qtyFix = rp / item.hargaJual; 
+        hargaFix = item.hargaJual;
+    }
+
+    // Cek apakah barang sudah ada di keranjang, kalau ada kita tambah qty-nya
+    const index = keranjang.findIndex(i => i.id === id);
+    if (index > -1) {
+        keranjang[index].qty += qtyFix;
+    } else {
+        keranjang.push({
+            id: id,
+            nama: item.nama,
+            qty: qtyFix,
+            harga: hargaFix, // Ini harga per satuan (Pcs atau Kg)
+            hargaBeli: item.hargaBeli || 0,
+            satuan: item.satuan || "Pcs"
+        });
+    }
+
+    updateTampilanKeranjang();
+};
+
+</script>
+</body>
+</html>
