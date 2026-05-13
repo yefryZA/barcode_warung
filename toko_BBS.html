@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KASIR TOKO BBS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #7cbde8; } /* Biru Langit Sangat Muda */
+        .bg-sky-primary { background-color: #0ea5e9; } /* Biru Langit Utama */
+        .text-sky-dark { color: #0369a1; }
+        .keranjang-height { height: calc(100vh - 350px); }
+    </style>
+</head>
+<body class="font-sans">
+
+    <nav class="bg-sky-primary p-4 text-white shadow-lg sticky top-0 z-50">
+    <div class="flex justify-between items-center max-w-md mx-auto">
+        <div>
+            <h1 class="font-bold text-lg tracking-wider leading-none">KASIR⚡BBS</h1>
+            <p class="text-[9px] opacity-70 uppercase tracking-[0.2em]">SYSTEM BY. YEFRY.ZA</p>
+        </div>
+        
+<div class="text-right">
+    <div class="text-right">
+    <p class="text-[10px] uppercase font-black mb-1 tracking-widest text-[#FFD700]">
+        ✨ Pendapatan Hari Ini
+    </p>
+    <div id="total-masuk-display" 
+         class="inline-block text-lg font-black px-4 py-1.5 rounded-xl border-2 border-[#FFD700] bg-slate-950 text-[#00FF00]">
+        Rp 0
+    </div>
+</div></div></nav>
+
+
+    <div class="max-w-md mx-auto p-4">
+        
+        <div class="bg-white rounded-2xl shadow-sm border border-sky-100 p-4 mb-4">
+            <label class="text-[10px] font-bold text-sky-dark uppercase">Ketik Nama Barang</label>
+            <div class="flex gap-2 mt-1">
+                <input type="text" id="input-cari" placeholder="Contoh: Besi, Cat..." 
+                    class="w-full bg-sky-50 border-2 border-sky-100 rounded-xl p-3 focus:border-sky-primary outline-none font-bold">
+                <button onclick="cariBarang()" class="bg-sky-primary text-white px-4 rounded-xl shadow-md active:scale-95">
+                    CARI
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-sky-100 p-4 mb-4">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-sm font-bold text-gray-600">Daftar Belanja</h2>
+                <button onclick="batalSemua()" class="text-red-400 text-xs italic">Hapus Semua</button>
+            </div>
+            
+            <div id="list-keranjang" class="keranjang-height overflow-y-auto space-y-2">
+                <p id="pesan-kosong" class="text-center text-gray-300 py-10 italic text-sm">Belum ada barang dipilih...</p>
+            </div>
+        </div>
+
+        <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-sky-100 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+            <div class="max-w-md mx-auto">
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <span class="text-gray-500 font-medium">Total Tagihan:</span>
+                    <span id="total-display" class="text-2xl font-black text-sky-dark">Rp 0</span>
+                </div>
+                <button onclick="prosesBayar()" class="w-full bg-sky-primary text-white py-4 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-all">
+                    PROSES PEMBAYARAN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-pilihan" class="fixed inset-0 bg-black/50 hidden z-[100] p-6 flex items-center justify-center">
+        <div class="bg-white w-full rounded-2xl p-5 max-h-[80vh] flex flex-col">
+            <h3 class="font-bold text-sky-dark mb-4">Pilih Barang:</h3>
+            <div id="container-opsi" class="overflow-y-auto space-y-2">
+                </div>
+            <button onclick="tutupModal()" class="mt-4 text-gray-400 text-sm py-2">Batal</button>
+        </div>
+    </div>
+
+    <div id="custom-modal" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-[#D4AF37] w-full max-w-md rounded-2xl p-6 shadow-[0_0_30px_rgba(212,175,55,0.2)]">
+        
+        <h3 id="modal-title" class="text-[#D4AF37] font-black uppercase tracking-widest mb-1 text-center">INPUT DATA</h3>
+        <p id="modal-label" class="text-gray-500 text-[10px] uppercase font-bold text-center mb-6 tracking-wider"></p>
+        
+        <div class="space-y-4">
+            <div class="relative">
+                <input type="tel" id="modal-input" 
+                    class="w-full bg-black border-b-2 border-gray-700 focus:border-[#D4AF37] text-white text-3xl font-bold p-3 outline-none transition-all text-center"
+                    placeholder="0"
+                    autocomplete="off">
+            </div>
+            
+            <div class="flex gap-4 mt-8">
+                <button onclick="closeCustomModal()" 
+                    class="flex-1 py-3 text-gray-500 font-bold uppercase text-[11px] hover:text-white transition-colors">
+                    Batal
+                </button>
+                <button id="modal-confirm" 
+                    class="flex-1 py-3 bg-[#D4AF37] text-black font-black rounded-xl uppercase text-[11px] shadow-[0_4px_15px_rgba(212,175,55,0.3)] active:scale-95 transition-transform">
+                    Lanjutkan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <script type="module">
+    // 1. Import Firebase di paling atas (Sekali saja)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { 
+        getDatabase, ref, set, get, update, onValue, remove, push 
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // 2. Config Toko Berkah Baja Steel
+    const firebaseConfig = {
+        apiKey: "AIzaSyBu9ANqvS0EwCnSrq6C5QJLuBvTIXO432s",
+        authDomain: "toko-berkah-baja-steel.firebaseapp.com",
+        projectId: "toko-berkah-baja-steel",
+        storageBucket: "toko-berkah-baja-steel.firebasestorage.app",
+        messagingSenderId: "249336564882",
+        appId: "1:249336564882:web:469cb1a9b41b114179ea4b"
+    };
+
+    // 3. Init Database
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app, "https://toko-berkah-baja-steel-default-rtdb.asia-southeast1.firebasedatabase.app/");
+
+    let keranjang = [];
+    const tglHariIni = new Date().toISOString().split('T')[0]; 
+
+    // --- FUNGSI CARI BARANG ---
+    window.cariBarang = async function() {
+        const input = document.getElementById('input-cari').value.trim();
+        if(!input) return;
+
+        const snapshot = await get(ref(db, 'stok_barang'));
+        const allData = snapshot.val();
+        let matches = [];
+
+        if(allData) {
+            Object.keys(allData).forEach(key => {
+                if(allData[key].nama.toLowerCase().includes(input.toLowerCase())) {
+                    matches.push({ id: key, ...allData[key] });
+                }
+            });
+        }
+
+        if(matches.length === 0) {
+            alert("Barang Tidak Ditemukan!");
+        } else if(matches.length === 1) {
+            tambahKeKeranjang(matches[0]);
+        } else {
+            tampilkanOpsi(matches);
+        }
+        document.getElementById('input-cari').value = "";
+    }
+
+    function tampilkanOpsi(matches) {
+        const container = document.getElementById('container-opsi');
+        container.innerHTML = "";
+        matches.forEach(item => {
+            const btn = document.createElement('button');
+            btn.className = "w-full text-left p-4 bg-sky-50 rounded-xl border border-sky-100 font-bold text-gray-700 mb-2";
+            btn.innerHTML = `${item.nama} <br><span class="text-xs text-sky-400">Harga: Rp ${item.hargaJual?.toLocaleString()}</span>`;
+            btn.onclick = () => { tambahKeKeranjang(item); tutupModal(); };
+            container.appendChild(btn);
+        });
+        document.getElementById('modal-pilihan').classList.remove('hidden');
+    }
+
+    window.tutupModal = () => document.getElementById('modal-pilihan').classList.add('hidden');
+
+    function renderKeranjang() {
+        const list = document.getElementById('list-keranjang');
+        const totalDisplay = document.getElementById('total-display');
+        const pesanKosong = document.getElementById('pesan-kosong');
+        
+        if (!list || !totalDisplay) return;
+        if (pesanKosong) pesanKosong.style.display = keranjang.length ? 'none' : 'block';
+        
+        list.innerHTML = "";
+        let total = 0;
+
+        keranjang.forEach((item, index) => {
+            const subtotal = Math.round(item.hargaJual * item.qty);
+            total += subtotal;
+            const labelQty = item.satuan === "Kg" ? item.qty.toFixed(2) + " Kg" : item.qty + " Pcs";
+
+            list.innerHTML += `
+                <div class="flex justify-between items-center p-3 bg-sky-50 rounded-xl border border-sky-100 mb-2">
+                    <div>
+                        <p class="font-bold text-gray-700 uppercase text-[11px]">${item.nama}</p>
+                        <p class="text-[10px] text-gray-400">${labelQty} x Rp ${item.hargaJual.toLocaleString()}</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-bold text-sky-900 text-xs">Rp ${subtotal.toLocaleString()}</span>
+                        <button onclick="window.hapusItem(${index})" class="text-red-400 text-xl px-2">&times;</button>
+                    </div>
+                </div>`;
+        });
+        totalDisplay.innerText = "Rp " + total.toLocaleString();
+    }
+
+    window.hapusItem = function(index) {
+        keranjang.splice(index, 1);
+        renderKeranjang();
+    };
+
+    // 1. UPDATE FUNGSI TAMBAH KE KERANJANG (DITAMBAH ASYNC & ASKINPUT)
+window.tambahKeKeranjang = async function(item) {
+    let qtyFinal = 0;
+    if (item.satuan === "Kg") {
+        // Ganti prompt jadi askInput (Auto-Titik)
+        const nominal = await askInput("BELI (TIMBANGAN)", `BELI ${item.nama.toUpperCase()}\nBeli berapa Rupiah?`);
+        
+        if (nominal && !isNaN(nominal) && nominal > 0) {
+            qtyFinal = parseFloat(nominal) / item.hargaJual;
+            if (qtyFinal > item.stok) { alert("Stok tidak cukup!"); return; }
+            keranjang.push({ ...item, qty: qtyFinal });
+        }
+    } else {
+        // Ganti prompt jadi askInput (Keypad Angka)
+        const qty = await askInput("BELI (BIJIAN)", `Beli ${item.nama.toUpperCase()} berapa banyak?`);
+        
+        if (qty && !isNaN(qty) && qty > 0) {
+            qtyFinal = parseInt(qty);
+            if (qtyFinal > item.stok) { alert("Stok tidak cukup!"); return; }
+            keranjang.push({ ...item, qty: qtyFinal });
+        }
+    }
+    if (qtyFinal > 0) renderKeranjang();
+};
+
+// 1. UPDATE FUNGSI TAMBAH KE KERANJANG (DITAMBAH ASYNC & ASKINPUT)
+window.tambahKeKeranjang = async function(item) {
+    let qtyFinal = 0;
+    if (item.satuan === "Kg") {
+        // Ganti prompt jadi askInput (Auto-Titik)
+        const nominal = await askInput("BELI (TIMBANGAN)", `BELI ${item.nama.toUpperCase()}\nBeli berapa Rupiah?`);
+        
+        if (nominal && !isNaN(nominal) && nominal > 0) {
+            qtyFinal = parseFloat(nominal) / item.hargaJual;
+            if (qtyFinal > item.stok) { alert("Stok tidak cukup!"); return; }
+            keranjang.push({ ...item, qty: qtyFinal });
+        }
+    } else {
+        // Ganti prompt jadi askInput (Keypad Angka)
+        const qty = await askInput("BELI (BIJIAN)", `Beli ${item.nama.toUpperCase()} berapa banyak?`);
+        
+        if (qty && !isNaN(qty) && qty > 0) {
+            qtyFinal = parseInt(qty);
+            if (qtyFinal > item.stok) { alert("Stok tidak cukup!"); return; }
+            keranjang.push({ ...item, qty: qtyFinal });
+        }
+    }
+    if (qtyFinal > 0) renderKeranjang();
+};
+
+// 2. UPDATE FUNGSI PROSES BAYAR (DITAMBAH ASKINPUT)
+window.prosesBayar = async function() {
+    if(keranjang.length === 0) return alert("Keranjang masih kosong!");
+    
+    let total = Math.round(keranjang.reduce((sum, item) => sum + (item.hargaJual * item.qty), 0));
+    
+    // Ganti prompt bayar jadi askInput (Sangat penting biar gak salah hitung nol)
+    let bayar = await askInput("PEMBAYARAN", `TOTAL: Rp ${total.toLocaleString()}\nMasukkan jumlah uang tunai:`);
+
+    if(bayar && parseInt(bayar) >= total) {
+        const kembali = parseInt(bayar) - total;
+        const tglSekarang = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Jakarta' }).split(' ')[0]; 
+        
+        const notaRef = ref(db, 'laporan_penjualan');
+        const notaBaru = push(notaRef);
+
+        const detailItems = keranjang.map(item => ({
+            nama: item.nama,
+            qty: item.qty,
+            hargaJual: item.hargaJual,
+            subtotal: Math.round(item.hargaJual * item.qty)
+        }));
+
+        // Simpan data (Logika tetap sama persis seperti kodingan awal Abang)
+        await set(notaBaru, {
+            tanggal: tglSekarang,
+            waktu: new Date().toLocaleTimeString(),
+            totalHarga: total,
+            uangBayar: parseInt(bayar),
+            uangKembali: kembali,
+            items: detailItems
+        });
+
+        // Update stok ke Firebase
+        for(let item of keranjang) {
+            const bRef = ref(db, `stok_barang/${item.id}`);
+            const snap = await get(bRef);
+            if (snap.exists()) {
+                await update(bRef, {
+                    stok: snap.val().stok - item.qty,
+                    terjual: (snap.val().terjual || 0) + item.qty
+                });
+            }
+        }
+
+        keranjang = [];
+        renderKeranjang();
+        alert(`KEMBALI: Rp ${kembali.toLocaleString()}\n\nTRANSAKSI BERHASIL!`);
+    } else if (bayar) {
+        alert("Uang tidak cukup!");
+    }
+};
+
+// --- MONITORING PENDAPATAN HARI INI (VERSI ANTI-PUSING) ---
+const cekPendapatanRealtime = () => {
+    const tglSekarang = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Jakarta' }).split(' ')[0]; 
+
+    onValue(ref(db, 'laporan_penjualan'), (snapshot) => {
+        const data = snapshot.val();
+        let totalDuit = 0;
+
+        if (data) {
+            Object.values(data).forEach(transaksi => {
+                // Saring yang tanggalnya sama dengan hari ini
+                // Kita cek field 'tanggal' dan field 'totalHarga'
+                if (transaksi.tanggal === tglSekarang) {
+                    totalDuit += parseInt(transaksi.totalHarga || 0);
+                }
+            });
+        }
+
+        // KITA TEMBAK KE DUA KEMUNGKINAN ID (BIAR PASTI KENA!)
+        const box1 = document.getElementById('pendapatan-hari-ini');
+        const box2 = document.getElementById('total-masuk-display');
+
+        if (box1) box1.innerText = "Rp " + totalDuit.toLocaleString('id-ID');
+        if (box2) box2.innerText = "Rp " + totalDuit.toLocaleString('id-ID');
+        
+        console.log("Update Pendapatan:", totalDuit);
+    });
+};
+
+cekPendapatanRealtime();
+
+// --- FUNGSI PEMBERI TITIK OTOMATIS (JANGAN SAMPAI KELEWAT) ---
+document.getElementById('modal-input').addEventListener('input', function(e) {
+    // 1. Ambil angka saja, buang huruf dll
+    let value = e.target.value.replace(/\D/g, ""); 
+    
+    // 2. Format jadi ribuan dengan titik
+    if (value) {
+        e.target.value = value.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+});
+
+window.askInput = function(title, label) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('custom-modal');
+        const input = document.getElementById('modal-input');
+        const confirmBtn = document.getElementById('modal-confirm');
+        
+        // Pasang Judul dan Label
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-label').innerText = label;
+        
+        // Reset Input & Munculkan Modal
+        input.value = "";
+        modal.classList.remove('hidden');
+        
+        // Fokuskan kursor ke input (Biar langsung ngetik)
+        setTimeout(() => input.focus(), 100);
+
+        // Aksi saat klik Lanjutkan
+        confirmBtn.onclick = () => {
+            let cleanValue = input.value.replace(/\./g, ""); // Buang titik sebelum dikirim balik
+            modal.classList.add('hidden');
+            resolve(cleanValue);
+        };
+    });
+};
+
+// 3. Fungsi Tutup Modal
+window.closeCustomModal = () => {
+    document.getElementById('custom-modal').classList.add('hidden');
+};
+
+</script>
+</script>
+</body>
+</html>
